@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity"
+    android:background="#8D918D"
+    >
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_alignParentTop="true"
+        android:layout_width="match_parent"
+        android:background="#345953"
+        android:layout_height="?attr/actionBarSize">
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:background="#345953"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentEnd="true"
+                android:layout_marginStart="26dp"
+                android:layout_marginEnd="36dp"
+                android:fontFamily="@font/orbitron"
+                android:gravity="center_vertical"
+                android:text="@string/app_name"
+                android:textColor="@color/white"
+                android:textSize="20sp">
+
+            </TextView>
+
+            <TextView
+                android:id="@+id/txtVersionCode"
+                android:layout_alignParentEnd="true"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:fontFamily="@font/orbitron"
+                android:gravity="center_vertical"
+                android:layout_marginEnd="10dp"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent">
+
+            </TextView>
+        </RelativeLayout>
+    </androidx.appcompat.widget.Toolbar>
+    <ImageView
+        android:id="@+id/image_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/toolbar"
+        android:layout_above="@id/linear_btn_holder"
+        android:scaleType="centerCrop"
+         />
+
+    <ScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/linear_btn_holder"
+        android:layout_below="@+id/toolbar"
+        android:layout_alignParentStart="true"
+
+        android:background="#8D918D">
+
+        <TextView
+            android:id="@+id/text_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="@color/black"
+            android:textSize="17sp" />
+    </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/linear_btn_holder"
+        android:layout_alignParentBottom="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        >
+
+        <Button
+
+            android:id="@+id/btn_copy"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fontFamily="@font/orbitron"
+            android:gravity="center"
+            android:text="Copy Text"
+            android:textSize="12sp"
+            android:visibility="visible" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btn_capture"
+                android:visibility="visible"
+                android:layout_height="40dp"
+                android:layout_width="0dp"
+                android:src="@drawable/camera_android"
+                android:contentDescription="@string/camera_icon"
+                android:layout_weight="1"
+                android:layout_margin="3dp"
+                android:background="@drawable/round_img" />
+
+            <ImageButton
+                android:id="@+id/btn_swap"
+                android:layout_height="match_parent"
+                android:visibility="visible"
+                android:layout_width="0dp"
+                android:src="@drawable/hide_image"
+                android:contentDescription="@string/swap_icon"
+                android:layout_weight="1"
+                android:layout_margin="3dp"
+                android:background="@drawable/round_img" />
+
+            <ImageButton
+                android:id="@+id/btn_gallery"
+                android:layout_height="match_parent"
+                android:visibility="visible"
+                android:layout_width="0dp"
+                android:src="@drawable/gallery"
+                android:contentDescription="@string/gallery_icon"
+                android:layout_weight="1"
+                android:layout_margin="3dp"
+                android:background="@drawable/round_img" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+
+</RelativeLayout>

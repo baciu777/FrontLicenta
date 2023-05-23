@@ -1,4 +1,4 @@
-package com.example.ocr_app;
+package com.example.htr_app;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -7,7 +7,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
-
 import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.ClipData;
@@ -15,19 +14,13 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.util.Log;
-import android.util.SparseArray;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -47,11 +40,7 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 
-import com.google.android.gms.vision.Frame;
-import com.google.android.gms.vision.text.TextBlock;
-import com.google.android.gms.vision.text.TextRecognizer;
 import com.theartofdev.edmodo.cropper.CropImage;
-import com.theartofdev.edmodo.cropper.CropImageActivity;
 import com.theartofdev.edmodo.cropper.CropImageView;
 
 
@@ -62,30 +51,27 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
-    ImageButton capture_button, gallery_button, swap_view_button;
-    Button copy_button;
-    Bitmap bitmap;
-    TextView textView;
-    ImageView imageView;
-    ScrollView scrollView;
-    ProgressDialog progressDialog;
-    private PackageInfo mPackageInfo;
+    private ImageButton capture_button, gallery_button, swap_view_button;
+    private Button copy_button;
+    //private Bitmap bitmap;
+    private TextView textView;
+    private ImageView imageView;
+    private ScrollView scrollView;
+    private ProgressDialog progressDialog;
     private static final int CAMERA_GALLERY_PERM_CODE = 102;
     private static final int GALLERY_REQUEST_CODE = 200;
     private static final int CAPTURE_REQUEST_CODE = 300;
     private static final String ipAddress = "192.168.0.125";
     private static final int port = 8080;
-    Uri photoURI;
-    Bitmap photoInUse;
-
+    private Uri photoURICapture;
+    private Bitmap photoInUse;
+    private File photoFileCapture;
 
 
     @Override
@@ -100,8 +86,8 @@ public class MainActivity extends AppCompatActivity {
         imageView = findViewById(R.id.image_view);
         scrollView = findViewById(R.id.scroll_view);
 
-        // Initially hide copy button
         copy_button.setVisibility(View.INVISIBLE);
+        swap_view_button.setImageResource(R.drawable.hide_text);
         swap_view_button.setVisibility(View.INVISIBLE);
         textView.setTextColor(Color.WHITE);
 
@@ -111,8 +97,8 @@ public class MainActivity extends AppCompatActivity {
                 .readTimeout(1000, TimeUnit.MILLISECONDS)
                 .writeTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
-        Request request = new Request.Builder().url("http://192.168.0.125:8080/").build();
-        //async
+        Request request = new Request.Builder().url("http://" + ipAddress + ":" + port+"/").build();
+
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -132,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 ResponseBody responseBody = response.body();
                 String responseBodyString = responseBody.string();
-                runOnUiThread(new Runnable() {//altfel pusca ca cica ruleaza pe thread secundar
+                runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         textView.setText(responseBodyString);
@@ -166,12 +152,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
-                File dir =
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
 
-                File output = new File(dir, "CameraContent2.jpeg");
-                photoURI = FileProvider.getUriForFile(MainActivity.this, BuildConfig.APPLICATION_ID + ".provider", output);
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                photoURICapture =getImageUri();
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, photoURICapture);
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
 
@@ -212,7 +195,6 @@ public class MainActivity extends AppCompatActivity {
                     textView.setVisibility(View.INVISIBLE);
                     imageView.setVisibility(View.VISIBLE);
                     scrollView.setVisibility(View.INVISIBLE);
-                    // if the textView is visible, hide it and show the image
                     swap_view_button.setImageResource(R.drawable.hide_image);
                     swap_view_button.setBackgroundResource(R.drawable.round_img);
 
@@ -220,7 +202,6 @@ public class MainActivity extends AppCompatActivity {
                     scrollView.setVisibility(View.VISIBLE);
                     textView.setVisibility(View.VISIBLE);
                     imageView.setVisibility(View.INVISIBLE);
-                    // if the textView is not visible, show it and hide the image
                     swap_view_button.setImageResource(R.drawable.hide_text);
                     swap_view_button.setBackgroundResource(R.drawable.round_img);
                 }
@@ -248,29 +229,25 @@ public class MainActivity extends AppCompatActivity {
         }
         if (requestCode == GALLERY_REQUEST_CODE && resultCode == RESULT_OK && data != null) {
             Uri selectedImage = data.getData();
-            // Call CropImage activity with the selected image URI
             CropImage.activity(selectedImage).setGuidelines(CropImageView.Guidelines.ON)
-                    .start(MainActivity.this);//asta va apela if ul de mai sus
+                    .start(MainActivity.this);
 
         }
-        if (requestCode == CAPTURE_REQUEST_CODE && resultCode == RESULT_OK) {//&& data != null) {
-            //susta e ca noi salvam poza deci data e null ca nu trimitem nimic
-            File dir =
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-            File pictureFile = new File(dir, "CameraContent2.jpeg");
+        if (requestCode == CAPTURE_REQUEST_CODE && resultCode == RESULT_OK) {
 
-            //Uri selectedImage = data.getData();
             try {
 
-                bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoURI);
+                Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoURICapture);
 
-                FileOutputStream fos = new FileOutputStream(pictureFile);
+
+                FileOutputStream fos = new FileOutputStream(photoFileCapture);
+
 
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
 
-                Uri selectedImage = getImageUri(getApplicationContext(), bitmap);
+                Uri selectedImage = saveImageUri(getApplicationContext(), bitmap, photoURICapture);
                 CropImage.activity(selectedImage).setGuidelines(CropImageView.Guidelines.ON)
-                        .start(MainActivity.this);//asta va apela if ul de sus
+                        .start(MainActivity.this);
 
             } catch (IOException e) {
 
@@ -294,8 +271,9 @@ public class MainActivity extends AppCompatActivity {
 
         Request request = new Request.Builder()
 
-                .url("http://" + ipAddress + ":" + port + "/image") // Replace with your server URL
-                .post(requestBody)///
+                .url("http://" + ipAddress + ":" + port + "/image")
+
+                .post(requestBody)
                 .build();
         startProgressBar();
 
@@ -388,15 +366,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private Uri getImageUri(Context context, Bitmap bitmap) {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
+
+    private Uri saveImageUri(Context context, Bitmap bitmap, Uri path) {
+        try {
+            OutputStream os = context.getContentResolver().openOutputStream(path);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, os);
+            os.flush();
+            os.close();
+            return path;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+    private Uri getImageUri() {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageTitle = "DigitalHand_" + timeStamp;
-        String path = MediaStore.Images.Media.insertImage(context.getContentResolver(), bitmap, imageTitle, null);
-        return Uri.parse(path);
-    }
+        File dir =
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
 
+        photoFileCapture = new File(dir, imageTitle + ".jpeg");
+        return FileProvider.getUriForFile(MainActivity.this, BuildConfig.APPLICATION_ID + ".provider", photoFileCapture);
+    }
 
     private void startProgressBar() {
         progressDialog = new ProgressDialog(MainActivity.this);

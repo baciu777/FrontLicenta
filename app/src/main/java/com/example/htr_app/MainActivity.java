@@ -389,6 +389,7 @@ public class MainActivity extends AppCompatActivity {
         return FileProvider.getUriForFile(MainActivity.this, BuildConfig.APPLICATION_ID + ".provider", photoFileCapture);
     }
 
+
     private void startProgressBar() {
         progressDialog = new ProgressDialog(MainActivity.this);
         progressDialog.setMessage("Loading...");

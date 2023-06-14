@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+
 import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.ClipData;
@@ -17,9 +18,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
@@ -59,7 +64,6 @@ import java.util.concurrent.TimeUnit;
 public class MainActivity extends AppCompatActivity {
     private ImageButton capture_button, gallery_button, swap_view_button;
     private Button copy_button;
-    //private Bitmap bitmap;
     private TextView textView;
     private ImageView imageView;
     private ScrollView scrollView;
@@ -92,40 +96,8 @@ public class MainActivity extends AppCompatActivity {
         textView.setTextColor(Color.WHITE);
 
 
-        OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(1000, TimeUnit.MILLISECONDS)
-                .readTimeout(1000, TimeUnit.MILLISECONDS)
-                .writeTimeout(1000, TimeUnit.MILLISECONDS)
-                .build();
-        Request request = new Request.Builder().url("http://" + ipAddress + ":" + port+"/").build();
+        makeGetRequestMessage();
 
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        capture_button.setEnabled(false);
-                        gallery_button.setEnabled(false);
-                        Toast.makeText(MainActivity.this, "Network not found", Toast.LENGTH_LONG).show();
-
-                    }
-                });
-            }
-
-
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                ResponseBody responseBody = response.body();
-                String responseBodyString = responseBody.string();
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        textView.setText(responseBodyString);
-                    }
-                });
-            }
-        });
 
 
         if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
@@ -150,10 +122,14 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, "Camera permission is required to capture a photo", Toast.LENGTH_SHORT).show();
                     return;
                 }
+                if (!isConnectedToInternet()) {
+                    Toast.makeText(MainActivity.this, "Network not found", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
 
-                photoURICapture =getImageUri();
+                photoURICapture = getImageUri();
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, photoURICapture);
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
@@ -170,6 +146,10 @@ public class MainActivity extends AppCompatActivity {
                         ||
                         ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     Toast.makeText(MainActivity.this, "Gallery permission is required to upload a photo", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (!isConnectedToInternet()) {
+                    Toast.makeText(MainActivity.this, "Network not found", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
@@ -278,14 +258,17 @@ public class MainActivity extends AppCompatActivity {
         startProgressBar();
 
         OkHttpClient client = new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .writeTimeout(10, TimeUnit.SECONDS)
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
+                progressDialog.dismiss();
+                Toast.makeText(MainActivity.this, "Connection lost", Toast.LENGTH_SHORT).show();
+
                 e.printStackTrace();
             }
 
@@ -323,7 +306,6 @@ public class MainActivity extends AppCompatActivity {
                             copy_button.setVisibility(View.VISIBLE);
                             imageView.setVisibility(View.INVISIBLE);
                             swap_view_button.setVisibility(View.VISIBLE);
-
 
 
                             imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -365,7 +347,50 @@ public class MainActivity extends AppCompatActivity {
         alert11.show();
     }
 
+    private void makeGetRequestMessage()
+    {
+        Handler handler = new Handler(Looper.getMainLooper());
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(1000, TimeUnit.MILLISECONDS)
+                .readTimeout(1000, TimeUnit.MILLISECONDS)
+                .writeTimeout(1000, TimeUnit.MILLISECONDS)
+                .build();
+        Request request = new Request.Builder().url("http://" + ipAddress + ":" + port + "/").build();
 
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                            // Retry the request after a delay
+                            handler.postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    makeGetRequestMessage();
+                                }
+                            }, 2500);
+                        Toast.makeText(MainActivity.this, "Network not found", Toast.LENGTH_SHORT).show();
+
+                    }
+                });
+            }
+
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                ResponseBody responseBody = response.body();
+                String responseBodyString = responseBody.string();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        textView.setText(responseBodyString);
+                    }
+                });
+            }
+        });
+
+    }
 
     private Uri saveImageUri(Context context, Bitmap bitmap, Uri path) {
         try {
@@ -379,6 +404,7 @@ public class MainActivity extends AppCompatActivity {
             return null;
         }
     }
+
     private Uri getImageUri() {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageTitle = "DigitalHand_" + timeStamp;
@@ -397,5 +423,10 @@ public class MainActivity extends AppCompatActivity {
         progressDialog.show();
     }
 
+    private boolean isConnectedToInternet() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isConnected();
+    }
 
 }
